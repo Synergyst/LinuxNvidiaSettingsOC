@@ -399,7 +399,7 @@ int main(int argc, char *argv[]) {
     }
   }
   fclose(fStr);
-  printf("\nGenerated xorg.conf, Xwrapper.config, and edid.bin\nEdit xorg.conf to enable fully-headless mode (default config requires a monitor plugged into the primary/first card!).\n\n");
+  printf("\nGenerated xorg.conf, Xwrapper.config, and edid.bin (copy these files to /etc/X11/)\nEdit xorg.conf to enable fully-headless mode (default config requires a monitor plugged into the primary/first card!).\n\n");
 
   if (printHelp) {
     printf("Usage:              %s -f <fan percentage> -l <absolute core clock> -m <memory clock offset> -i <card ID>\n", argv[0]);

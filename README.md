@@ -17,7 +17,7 @@ Card list:
         +---> GPU#3, bus(hex): 0e:00.0, bus(dec): 14:0.0
         +---> GPU#4, bus(hex): 12:00.0, bus(dec): 18:0.0
 
-Generated xorg.conf, Xwrapper.config, and edid.bin
+Generated xorg.conf, Xwrapper.config, and edid.bin (copy these files to /etc/X11/)
 Edit xorg.conf to enable fully-headless mode (default config requires a monitor plugged into the primary/first card!).
 
 Usage:              ./LinuxNvidiaSettingsOC.out -f <fan percentage> -l <absolute core clock> -m <memory clock offset> -i <card ID>
