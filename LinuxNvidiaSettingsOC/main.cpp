@@ -10,7 +10,10 @@
 #include "edid.h"
 #include "xorgfiles.h"
 #define MAXCARDCNT 32
-#define CMDBUFSIZ 1024
+#define MAX_FAN_CNT 3
+#define ID_LEN 12
+#define CMDBUFSIZ 65535
+//#define CMDBUFSIZ 1024
 
 /* 
  * =================================
@@ -31,17 +34,20 @@
  * Currently I only implemented a limit for the fan min/max speed.
  * 
  * TODO: Print card names along with ID/bus information.
+ * 
+ * FIXME: Allocate memory properly. Do not use magic numbers/magic numbers which allocate just over enough memory.
  */
 
 int selectedCardID;
 int fanVal = -1;
 int lockCclockVal = 0;
+int lockMclockVal = 0;
 int cclockVal = 0;
 int mclockVal = 0;
 bool usingCardID = false;
-char (*lineArr)[24];
-char (*lineDecArr)[24];
-char (*fanArr)[3];
+char **lineArr;
+char **lineDecArr;
+char **fanArr;
 int fanIter = 0;
 char cOut[CMDBUFSIZ];
 
@@ -92,7 +98,7 @@ int runCommand(char *inCommand) {
 }
 
 int numOfCards() {
-  char cmd[128];
+  char cmd[60];
   strcpy(cmd, "nvidia-xconfig --query-gpu-info | awk 'NR==1 { print $4 }'");
   runCommand(cmd);
   //printf("CMD: %s\n%s", cmd, cOut);
@@ -103,7 +109,7 @@ int fan(int id, int x) {
   printf("Setting GPU#%d fan(s) to: %d%\n", id, x);
   char* cmd;
   strcpy(cOut, "");
-  cmd = (char*)malloc(1024 * sizeof(char));
+  cmd = (char*)malloc(65535 * sizeof(char));
   sprintf(cmd, "nvidia-settings --ctrl-display=:0 -a [gpu:%d]/GPUPowerMizerMode=1 -a [gpu:%d]/GPUFanControlState=1", id, id);
 
   for (int c = 0; c < fanIter; c++) {
@@ -113,16 +119,28 @@ int fan(int id, int x) {
   }
   sprintf(cmd, "%s &", cmd);
   runCommand(cmd);
+  free(cmd);
   strcpy(cOut, "");
   return 0;
 }
 
 int lockCclock(int id, int x) {
-  printf("Setting GPU#%d core clock to: %d%\n", id, x);
+  printf("Locking GPU#%d core clock to: %d%\n", id, x);
   //printf("%s cclock: %d\n", str, x);
   strcpy(cOut, "");
-  char* cmd;
-  sprintf(cmd, "nvidia-smi -i %d -lgc %d", id, x);
+  char cmd[36];
+  sprintf(cmd, "sudo nvidia-smi -i %d -lgc %d", id, x);
+  runCommand(cmd);
+  strcpy(cOut, "");
+  return 0;
+}
+
+int lockMclock(int id, int x) {
+  printf("Locking GPU#%d memory clock to: %d%\n", id, x);
+  //printf("%s cclock: %d\n", str, x);
+  strcpy(cOut, "");
+  char cmd[36];
+  sprintf(cmd, "sudo nvidia-smi -i %d -lmc %d", id, x);
   runCommand(cmd);
   strcpy(cOut, "");
   return 0;
@@ -132,7 +150,7 @@ int cclock(int id, int x) {
   printf("Setting GPU#%d core clock offset to: %d%\n", id, x);
   //printf("%s cclock: %d\n", str, x);
   strcpy(cOut, "");
-  char *cmd;
+  char cmd[200];
   sprintf(cmd, "nvidia-settings --ctrl-display=:0 -a [gpu:%d]/GPUPowerMizerMode=1 -a [gpu:%d]/GPUGraphicsClockOffset[2]=%d -a [gpu:%d]/GPUGraphicsClockOffset[3]=%d", id, id, x, id, x);
   sprintf(cmd, "%s &", cmd);
   runCommand(cmd);
@@ -141,12 +159,15 @@ int cclock(int id, int x) {
   return 0;
 }
 
-int resetgc(int id) {
-  //printf("Resetting GPU#%d core clocks to stock\n", id);
+int resetAllClocks(int id) {
+  printf("Resetting GPU#%d clocks to stock.\n", id);
   //printf("%s cclock: %d\n", str, x);
   strcpy(cOut, "");
-  char* cmd;
-  sprintf(cmd, "nvidia-smi -i %d -rgc", id);
+  char cmd[36];
+  sprintf(cmd, "sudo nvidia-smi -i %d -rgc", id);
+  runCommand(cmd);
+  strcpy(cmd, "");
+  sprintf(cmd, "sudo nvidia-smi -i %d -rmc", id);
   runCommand(cmd);
   //printf("%s", cOut);
   strcpy(cOut, "");
@@ -157,7 +178,7 @@ int mclock(int id, int x) {
   printf("Setting GPU#%d memory clock offset to: %d%\n", id, x);
   //printf("%s mclock: %d\n", str, x);
   strcpy(cOut, "");
-  char *cmd;
+  char cmd[148];
   sprintf(cmd, "nvidia-settings --ctrl-display=:0 -a [gpu:%d]/GPUPowerMizerMode=1 -a [gpu:%d]/GPUMemoryTransferRateOffsetAllPerformanceLevels=%d", id, id, x);
   sprintf(cmd, "%s &", cmd);
   runCommand(cmd);
@@ -175,7 +196,6 @@ bool is_realnumber(char* instring) {
 }
 
 int main(int argc, char *argv[]) {
-  char command[1024];
   strcpy(cOut, "");
   int opt, numOfCardsVal;
   numOfCardsVal = numOfCards();
@@ -183,7 +203,7 @@ int main(int argc, char *argv[]) {
   bool printHelp = false;
   bool resetClocks = false;
 
-  while ((opt = getopt(argc, argv, ":f:c:m:i:r:h")) != -1) {
+  while ((opt = getopt(argc, argv, ":f:c:m:i:l:v:rh")) != -1) {
     switch (opt) {
     case 'h':
       printHelp = true;
@@ -207,12 +227,19 @@ int main(int argc, char *argv[]) {
       }
       fanVal = atoi(optarg);
       break;
-    case 'lc':
+    case 'l':
       if (!is_realnumber(optarg)) {
         printf("'%s' is not a valid absolute core clock value, exiting..\n", argv[optind - 1]);
         return 1;
       }
       lockCclockVal = atoi(optarg);
+      break;
+    case 'v':
+      if (!is_realnumber(optarg)) {
+        printf("'%s' is not a valid absolute memory clock value, exiting..\n", argv[optind - 1]);
+        return 1;
+      }
+      lockMclockVal = atoi(optarg);
       break;
     case 'c':
       if (!is_realnumber(optarg)) {
@@ -247,33 +274,43 @@ int main(int argc, char *argv[]) {
   fStr = fopen("edid.bin", "wb");
   fwrite(&edidfile, sizeof(unsigned char), edidfsize, fStr);
   fclose(fStr);
-  printf("Generated edid.bin (EDID spoofing file for headless mode).\nPlace in /etc/X11/ if not already there.\n\n");
   fStr = fopen("Xwrapper.config", "wb");
   fwrite(&xwrapperconfigfile, sizeof(unsigned char), xwrapperconfigfsize, fStr);
   fclose(fStr);
-  printf("Generated Xwrapper.config file.\nNOTE: If you have issues please move Xwrapper.config to /etc/X11/\n\n");
 
   /*copyFile("/etc/X11/Xwrapper.config", "Xwrapper.config.bak");
   printf("Backed up currently active Xwrapper.config file to Xwrapper.config.bak\nNOTE: If you have issues please move Xwrapper.config to /etc/X11/\n\n");*/
 
-  fanArr = (char(*)[3])malloc((numOfCardsVal * sizeof(char[3])));
-  char* cmdFan;
+  fanArr = (char**)malloc((numOfCardsVal * MAX_FAN_CNT) * sizeof(char*));
+  for (int i = 0; i < (numOfCardsVal * MAX_FAN_CNT); i++) {
+    fanArr[i] = (char*)malloc((ID_LEN + 1) * sizeof(char));
+    //strcpy(lineDecArr[i], your_string[i]);
+  }
+  strcpy(cOut, "");
+  char cmdFan[128];
   strcpy(cmdFan, "nvidia-settings --ctrl-display=:0 -q fans --verbose|grep -E 'gpu:'|awk '{ print $1 }'|cut -d':' -f3|cut -d']' -f1");
   runCommand(cmdFan);
+  //printf("CMD: %s\n%s", cmdFan, cOut);
 
   const char fanDelim[] = "\n";
   char* fanToken = strtok(cOut, fanDelim);
   // walk through other tokens
   while (fanToken != NULL) {
     strcpy(fanArr[fanIter], fanToken);
+    //printf("GPU#%s, fan: %d\n", fanArr[fanIter], fanIter);
     fanToken = strtok(NULL, fanDelim);
     fanIter++;
   }
 
-  lineArr = (char(*)[24])malloc(numOfCardsVal * sizeof(char[24]));
+  lineArr = (char**)malloc(numOfCardsVal * sizeof(char*));
+  for (int i = 0; i < numOfCardsVal; i++) {
+    lineArr[i] = (char*)malloc((ID_LEN + 1) * sizeof(char));
+    //strcpy(lineDecArr[i], your_string[i]);
+  }
   strcpy(cOut, "");
-  strcpy(command, "nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf \"%02x:%02x.%x\\n\", $2, $3, $4 }'");
-  runCommand(command);
+  char cmdLineArr[128];
+  strcpy(cmdLineArr, "nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf \"%02x:%02x.%x\\n\", $2, $3, $4 }'");
+  runCommand(cmdLineArr);
   const char delim[] = "\n";
   char* token = strtok(cOut, delim);
   // walk through other tokens
@@ -286,10 +323,15 @@ int main(int argc, char *argv[]) {
   }
 
   printf("Card list: \n");
-  lineDecArr = (char(*)[24])malloc(numOfCardsVal * sizeof(char[24]));
+  lineDecArr = (char**)malloc(numOfCardsVal * sizeof(char*));
+  for (int i = 0; i < numOfCardsVal; i++) {
+    lineDecArr[i] = (char*)malloc((ID_LEN + 1) * sizeof(char));
+    //strcpy(lineDecArr[i], your_string[i]);
+  }
   strcpy(cOut, "");
-  strcpy(command, "nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf \"%d:%d.%d\\n\", $2, $3, $4 }'");
-  runCommand(command);
+  char cmdLineDecArr[128];
+  strcpy(cmdLineDecArr, "nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf \"%d:%d.%d\\n\", $2, $3, $4 }'");
+  runCommand(cmdLineDecArr);
   const char decDelim[] = "\n";
   char* decToken = strtok(cOut, decDelim);
   // walk through other tokens
@@ -357,16 +399,29 @@ int main(int argc, char *argv[]) {
     }
   }
   fclose(fStr);
-  printf("\nGenerated xorg.conf in semi-headless mode template based on currently installed cards.\nSemi-headless mode requires the first card to have a physical monitor plugged into it.\nEdit the configuration file to make it fully-headless.\n\n");
+  printf("\nGenerated xorg.conf, Xwrapper.config, and edid.bin\nEdit xorg.conf to enable fully-headless mode (default config requires a monitor plugged into the primary/first card!).\n\n");
 
   if (printHelp) {
-    printf("Usage: %s -f <fan percentage> -c <core clock offset> -m <memory clock offset> -i <card ID>\n", argv[0]);
+    printf("Usage:              %s -f <fan percentage> -l <absolute core clock> -m <memory clock offset> -i <card ID>\n", argv[0]);
+    printf("Usage(alt example): %s -f <fan percentage> -c <core clock offset> -m <memory clock offset> -i <card ID>\n", argv[0]);
     printf("\t-f\tFan percentage (ie: 0 to 100)\n\t\t    If you do not want to set a fan speed use: -f -1\n");
     printf("\t-c\tCore clock offset\n");
     printf("\t-m\tMemory clock offset\n");
-    printf("\t-r\tReset clocks\n");
+    printf("\t-l\tLock core clock\n");
+    printf("\t-v\tLock memory clock\n");
+    printf("\t-r\tReset core/memory clocks (for supplied card ID)\n");
     printf("\t-i\tCard ID (ie: the value for GPU#0 would be 0)\n\t\t    You can get a list of card ID's associated to card names by running: nvidia-xconfig --query-gpu-info\n\n");
     printf("\t-h\tPrint help, list card ID's, and automatically generate Xorg config files\n");
+    printf("\nNOTES:\n\tLocked/absolute values are mutually exclusive to their offset-method counterpart (do not try to lock your core clock and set a core clock offset).\n\n");
+    printf("\tReset clocks before adjusting any cards which *already* have any clocks set (usage: %s -i <card ID> -r)\n", argv[0]);
+    char username[256];
+    int userRetVal = getlogin_r(username, 256);
+    char nvidiaSmiLocCmd[42];
+    strcpy(cOut, "");
+    strcpy(nvidiaSmiLocCmd, "whereis -b nvidia-smi|awk '{ print $2 }'");
+    runCommand(nvidiaSmiLocCmd);
+    printf("\tAdd the following to the bottom of /etc/sudoers (required for Nvidia-SMI functionality): %s ALL = (root) NOPASSWD: %s\n\n", username, cOut);
+    printf("Please report issues/suspected bugs to the GitHub page: https://github.com/Synergyst/LinuxNvidiaSettingsOC/issues\n");
     return 0;
   }
 
@@ -392,15 +447,14 @@ int main(int argc, char *argv[]) {
   }
 
   if (resetClocks) {
-    resetgc(selectedCardID);
+    resetAllClocks(selectedCardID);
   } else {
     printf("Will not reset clocks\n");
   }
 
   if (lockCclockVal != 0) { // FIXME: Add limits according to hardware limits per-card
     lockCclock(selectedCardID, lockCclockVal);
-  }
-  else {
+  } else {
     printf("Will not set core clock offset\n");
   }
 
