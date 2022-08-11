@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ ! -d "/tmp/nv-oc-util-temp" ]; then
+  echo "Temporary directory not detected. Creating one."
+  mkdir /tmp/nv-oc-util-temp
+fi
+cd /tmp/nv-oc-util-temp
+
 generate_xorg_conf () {
 if [[ $# -ne 1 ]]; then
   echo
@@ -26,12 +32,6 @@ done
 HEADSECTION+="${DEVSCRSECTION}"
 }
 
-if [ ! -d "/tmp/nv-oc-util-temp" ]; then
-  echo "Temporary directory not detected. Creating one."
-  mkdir /tmp/nv-oc-util-temp
-fi
-cd /tmp/nv-oc-util-temp
-
 edid='AP///////wANCRu9AAAAAB4XAQOAWDJ4up2Bo1RMmSYPUFQlTwBxQIEAgUCBgJUAlQ+zAKlAZBkAQEEAJjAYiDYAoFoAAAAeAjqAGHE4LUBYLEUAoFoAAAAeAAAA/QAyPB5EDwIAICAgICAgAAAA/ABWR0EgRElTUExBWQogAa0CAxtyIwkHB4MBAABnAwwAEACAIUMBEITiAA8BHQByUdAeIG4oVQCBSQAAAB4AAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAvg=='
 filename="NVIDIA-Linux-x86_64-510.60.02.run"
 
@@ -39,7 +39,8 @@ help_dialog() {
   echo -ne '\nUsage of command-line options\n\tOptions:'
   echo -ne '\n\t  drivers\tVerify driver installation and then ask to install drivers or not\n'
   echo -ne '\n\t  xorg\t\tVerify driver installation and then generate xorg.conf config files\n'
-  echo -ne '\n\t  oc\t\tNot yet implemented\n\n'
+  echo -ne '\n\t  oc\t\tNot yet implemented\n'
+  echo -ne '\n\t  clean\t\tRemoves the temporary storage directory (/tmp/nv-oc-util-temp)\n\n'
   exit 1
 }
 
@@ -59,6 +60,7 @@ verify_driver_download() {
 download_drivers() {
   if [ ! -f "$filename" ]; then
     wget --output-document=$filename https://us.download.nvidia.com/XFree86/Linux-x86_64/510.60.02/NVIDIA-Linux-x86_64-510.60.02.run
+    chmod +x $filename
   fi
   verify_driver_download
 }
@@ -116,10 +118,12 @@ if [[ $1 == "drivers" ]]; then
 fi
 
 if [[ $1 == "xorg" ]]; then
+  echo "Generating xorg.conf file now.."
   verify_drivers
   num_of_cards=`nvidia-xconfig --query-gpu-info | awk 'NR==1 { print $4 }'`
   generate_xorg_conf "$(($num_of_cards-1))"
-  #echo "${HEADSECTION}"
+  echo "${HEADSECTION}" > /tmp/nv-oc-util-temp/xorg.conf
+  echo "Generated xorg.conf file, exiting.."
   exit
 fi
 
