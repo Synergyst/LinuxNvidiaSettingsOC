@@ -36,10 +36,11 @@ filename="NVIDIA-Linux-x86_64-510.60.02.run"
 
 help_dialog() {
   echo -ne '\nUsage of command-line options\n\tOptions:'
-  echo -ne '\n\t  drivers\tVerify driver installation and then ask to install drivers or not\n'
-  echo -ne '\n\t  xorg\t\tVerify driver installation and then generate xorg.conf config files\n'
-  echo -ne '\n\t  oc\t\tNot yet implemented\n'
-  echo -ne '\n\t  clean\t\tRemoves the temporary storage directory (/tmp/nv-oc-util-temp)\n\n'
+  echo -ne '\n\t  drivers\t\tVerify driver installation and then ask to install drivers or not\n'
+  echo -ne '\n\t  xorg\t\t\tVerify driver installation and then generate xorg.conf config files\n'
+  echo -ne '\n\t  oc\t\t\tNot yet implemented\n'
+  echo -ne '\n\t  cleantemp\t\tRemoves the temporary storage directory (/tmp/nv-oc-util-temp)\n'
+  echo -ne '\n\t  uninstalldrivers\tSimilar to DDU on Windows; tries to perform a clean uninstallation of all Nvidia packages\n\n'
   exit 1
 }
 
@@ -128,7 +129,7 @@ case $1 in
     echo "Not implemented yet, exiting.."
     exit 1
     ;;
-  clean)
+  cleantemp)
     if [ -d "/tmp/nv-oc-util-temp" ]; then
       rm -rf /tmp/nv-oc-util-temp
       exit $?
@@ -136,6 +137,9 @@ case $1 in
       echo "There is nothing to cleanup, exiting.."
       exit 1
     fi
+    ;;
+  uninstalldrivers)
+    apt-get remove --purge `dpkg -l | egrep "nvidia|cuda|libcudnn|nsight"|awk '{print $2}'`
     ;;
   *)
     echo
