@@ -129,7 +129,7 @@ case $1 in
     ;;
   cards)
     echo "Verifying working install of Nvidia drivers.."
-    #verify_drivers
+    verify_drivers
     echo "$customPciIds" | base64 -d > custom-pci.ids
     num_of_cards=`nvidia-xconfig --query-gpu-info | awk 'NR==1 { print $4 }'`
     echo "List of cards in decimal/hexidecimal formats:"
