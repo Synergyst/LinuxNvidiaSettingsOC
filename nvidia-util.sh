@@ -12,7 +12,7 @@ driverversion="510.60.02"
 # SHA256 sum of the driver
 # TODO: Add a commented list of sums for each common driver version
 driversum="a800dfc0549078fd8c6e8e6780efb8eee87872e6055c7f5f386a4768ce07e003"
-driverurl='https://us.download.nvidia.com/XFree86/Linux-x86_64/$driverversion/NVIDIA-Linux-x86_64-$driverversion.run'
+driverurl="https://us.download.nvidia.com/XFree86/Linux-x86_64/$driverversion/NVIDIA-Linux-x86_64-$driverversion.run"
 filename="NVIDIA-Linux-x86_64-$driverversion.run"
 
 generate_xorg_conf () {
