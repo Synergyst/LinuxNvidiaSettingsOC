@@ -139,7 +139,7 @@ case $1 in
       echo -ne "hex (GPU#$m): "
       hexCardId=`nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf "%02x:%02x.%x\n", $2, $3, $4 }'|sed -n $(($m+1))p`
       echo -ne "$hexCardId "
-      lspci -i custom-pci.ids -s "$hexCardId"|awk '{$1="+";$2="-";$3="-";$4=">"; print $0}'
+      lspci -i custom-pci.ids -nns "$hexCardId"|awk '{$1="+";$2="-";$3="-";$4="-";$5=">"; print $0}'
       echo
     done
     #echo "Decimal is what your Xorg configuration files need, whereas hexidecimal is what lspci would need (ie: lspci -s 0b:00.0)"
