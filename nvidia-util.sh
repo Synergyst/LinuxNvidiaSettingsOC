@@ -49,6 +49,7 @@ help_dialog() {
   echo -ne '\nUsage of command-line options\n\tOptions:'
   echo -ne '\n\t  drivers\t\tVerify driver installation and then ask to install drivers or not\n'
   echo -ne '\n\t  xorg\t\t\tVerify driver installation and then generate Xorg-related files\n'
+  echo -ne '\n\t  cards\t\t\tLists the cards on the system\n'
   echo -ne '\n\t  oc\t\t\tNot yet implemented\n'
   echo -ne '\n\t  cleantemp\t\tRemoves the temporary storage directory (Deletes downloaded driver(s) and/or Xorg files in /tmp/nv-oc-util-temp/)\n'
   echo -ne '\n\t  uninstalldrivers\tSimilar to DDU on Windows; tries to perform a clean uninstallation of all Nvidia packages\n\n'
