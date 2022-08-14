@@ -6,6 +6,9 @@ if [ ! -d "/tmp/nv-oc-util-temp" ]; then
 fi
 cd /tmp/nv-oc-util-temp
 
+edid='AP///////wANCRu9AAAAAB4XAQOAWDJ4up2Bo1RMmSYPUFQlTwBxQIEAgUCBgJUAlQ+zAKlAZBkAQEEAJjAYiDYAoFoAAAAeAjqAGHE4LUBYLEUAoFoAAAAeAAAA/QAyPB5EDwIAICAgICAgAAAA/ABWR0EgRElTUExBWQogAa0CAxtyIwkHB4MBAABnAwwAEACAIUMBEITiAA8BHQByUdAeIG4oVQCBSQAAAB4AAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAvg=='
+filename="NVIDIA-Linux-x86_64-510.60.02.run"
+
 generate_xorg_conf () {
   if [[ $# -ne 1 ]]; then
     echo
@@ -13,31 +16,32 @@ generate_xorg_conf () {
     exit 1
   fi
 
-  HEADSECTION=`echo -ne "Section "ServerFlags"\n        Option "BlankTime" "0"\n        Option "StandbyTime" "0"\n        Option "SuspendTime" "0"\n        Option "OffTime" "0"\nEndSection\n\nSection "ServerLayout"\n        Identifier     "Layout0"\n"`
-  for ((m=0; m <= $1; m++)); do
+  HEADSECTION=`echo -ne "Section \"ServerFlags\"\n        Option \"BlankTime\" \"0\"\n        Option \"StandbyTime\" \"0\"\n        Option \"SuspendTime\" \"0\"\n        Option \"OffTime\" \"0\"\nEndSection\n\nSection \"ServerLayout\"\n        Identifier     \"Layout0\"\n"`
+  for ((m=0; m &lt;= $1; m++)); do
     HEADSECTION+=`echo -ne "\n        Screen $m \"Screen$m\" 0 0\n"`
   done
-  HEADSECTION+=`echo -ne "\n        InputDevice    "Mouse0" "CorePointer"\nEndSection\n\nSection "Module"\n        Disable "glx"\nEndSection
-    \nSection "InputDevice"\n        Identifier     "Mouse0"\n        Driver         "mouse"\n        Option         "Protocol" "auto"\
-    \n        Option         "Device" "/dev/psaux"\n        Option         "Emulate3Buttons" "no"\n        Option         "ZAxisMapping" "4 5"\nEndSection
-    \nSection "InputDevice"\n        Identifier     "Keyboard0"\n        Driver         "kbd"\nEndSection\n\nSection "Monitor"\n        Identifier     "Monitor0"\n        Option         "DPMS" "0"\nEndSection\n\n\n"`
-  for ((m=0; m <= $1; m++)); do
+  HEADSECTION+=`echo -ne "\n        InputDevice    \"Mouse0\" \"CorePointer\"\nEndSection\n\nSection \"Module\"\n        Disable "glx"\nEndSection
+    \nSection \"InputDevice\"\n        Identifier     \"Mouse0\"\n        Driver         \"mouse\"\n        Option         \"Protocol\" \"auto\"\
+    \n        Option         \"Device\" \"/dev/psaux\"\n        Option         \"Emulate3Buttons\" \"no\"\n        Option         \"ZAxisMapping\" \"4 5\"\nEndSection
+    \nSection \"InputDevice\"\n        Identifier     \"Keyboard0\"\n        Driver         \"kbd\"\nEndSection\n\nSection \"Monitor\"\n        Identifier     \"Monitor0\"\n        Option         \"DPMS\" \"0\"\nEndSection\n\n\n"`
+  for ((m=0; m &lt;= $1; m++)); do
     DEVSCRSECTION+=`echo -ne "\n\nSection \"Device\"\n        Identifier     \"Device$m\"\n        Driver         \"nvidia\"\n        Option         \"Coolbits\" \"31\"\
     \n        BusID          \"PCI:"`
     DEVSCRSECTION+=$(nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf "%d:%d.%d\n", $2, $3, $4 }'|sed -n $(($m+1))p)
-    DEVSCRSECTION+=`echo -ne "\"\n        Option         \"ConnectedMonitor\" \"DFP-$m\"\n        Option         \"CustomEDID\" \"DFP-$m:/etc/edidfake.bin\"\nEndSection\n\
+    DEVSCRSECTION+=`echo -ne "\"\n        Option         \"ConnectedMonitor\" \"DFP-$m\"\n        Option         \"CustomEDID\" \"DFP-$m:/etc/X11/edid.bin\"\nEndSection\n\
     \nSection \"Screen\"\n        Identifier     \"Screen$m\"\n        Device         \"Device$m\"\n        Option         \"Coolbits\" \"31\"\n        Option         \"UseDisplayDevice\" \"none\"\nEndSection\n\n"`
   done
   HEADSECTION+="${DEVSCRSECTION}"
-}
 
-edid='AP///////wANCRu9AAAAAB4XAQOAWDJ4up2Bo1RMmSYPUFQlTwBxQIEAgUCBgJUAlQ+zAKlAZBkAQEEAJjAYiDYAoFoAAAAeAjqAGHE4LUBYLEUAoFoAAAAeAAAA/QAyPB5EDwIAICAgICAgAAAA/ABWR0EgRElTUExBWQogAa0CAxtyIwkHB4MBAABnAwwAEACAIUMBEITiAA8BHQByUdAeIG4oVQCBSQAAAB4AAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAvg=='
-filename="NVIDIA-Linux-x86_64-510.60.02.run"
+  echo "$edid" | base64 -d &gt; edid.bin
+  echo -ne "needs_root_rights = auto\nallowed_users=anybody\n" &gt; Xwrapper.config
+  echo "${HEADSECTION}" &gt; xorg.conf
+}
 
 help_dialog() {
   echo -ne '\nUsage of command-line options\n\tOptions:'
   echo -ne '\n\t  drivers\t\tVerify driver installation and then ask to install drivers or not\n'
-  echo -ne '\n\t  xorg\t\t\tVerify driver installation and then generate xorg.conf config files\n'
+  echo -ne '\n\t  xorg\t\t\tVerify driver installation and then generate Xorg-related files\n'
   echo -ne '\n\t  oc\t\t\tNot yet implemented\n'
   echo -ne '\n\t  cleantemp\t\tRemoves the temporary storage directory (/tmp/nv-oc-util-temp)\n'
   echo -ne '\n\t  uninstalldrivers\tSimilar to DDU on Windows; tries to perform a clean uninstallation of all Nvidia packages\n\n'
@@ -66,7 +70,7 @@ download_drivers() {
 }
 
 install_drivers() {
-  ./$filename --accept-license --no-questions --no-nouveau-check
+  ./$filename --accept-license --no-questions --dkms --no-nouveau-check --no-opengl-files --no-install-compat32-libs
 }
 
 verify_drivers () {
@@ -84,7 +88,7 @@ verify_drivers () {
       echo "nvidia-smi was found."
       echo
       echo "Checking if nvidia-smi is functioning."
-      nvidia-smi 2>&1 >/dev/null
+      nvidia-smi 2&gt;&amp;1 &gt;/dev/null
       if [[ "$?" -ne "0" ]]; then
         echo "nvidia-smi did not return an exit code of 0, this is likely due to a bad installation of the Nvidia drivers or some mismatch of driver components."
       else
@@ -114,8 +118,7 @@ case $1 in
     verify_drivers
     num_of_cards=`nvidia-xconfig --query-gpu-info | awk 'NR==1 { print $4 }'`
     generate_xorg_conf "$(($num_of_cards-1))"
-    echo "${HEADSECTION}" > /tmp/nv-oc-util-temp/xorg.conf
-    echo "Generated xorg.conf file (stored at /tmp/nv-oc-util-temp/xorg.conf), exiting.."
+    echo "Generated Xorg files (stored at /tmp/nv-oc-util-temp/), exiting.."
     exit
     ;;
   cards)
