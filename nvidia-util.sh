@@ -38,7 +38,7 @@ generate_xorg_conf () {
   for ((m=0; m <= $1; m++)); do
     DEVSCRSECTION+=`echo -ne "\n\nSection \"Device\"\n        Identifier     \"Device$m\"\n        Driver         \"nvidia\"\n        Option         \"Coolbits\" \"31\"\
     \n        BusID          \"PCI:"`
-    DEVSCRSECTION+=$(nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf "%d:%d.%d\n", $2, $3, $4 }'|sed -n $(($m+1))p)
+    DEVSCRSECTION+=$(nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf "%d:%d:%d\n", $2, $3, $4 }'|sed -n $(($m+1))p)
     DEVSCRSECTION+=`echo -ne "\"\n        Option         \"ConnectedMonitor\" \"DFP-$m\"\n        Option         \"CustomEDID\" \"DFP-$m:/etc/X11/edid.bin\"\nEndSection\n\
     \nSection \"Screen\"\n        Identifier     \"Screen$m\"\n        Device         \"Device$m\"\n        Option         \"Coolbits\" \"31\"\n        Option         \"UseDisplayDevice\" \"none\"\nEndSection\n\n"`
   done
@@ -141,7 +141,7 @@ case $1 in
     echo "List of cards in decimal/hexidecimal formats:"
     for ((m=0; m <= $(($num_of_cards-1)); m++)); do
       echo -ne "dec (GPU#$m): "
-      nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf "%d:%d.%d\n", $2, $3, $4 }'|sed -n $(($m+1))p
+      nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf "%d:%d:%d\n", $2, $3, $4 }'|sed -n $(($m+1))p
       echo -ne "hex (GPU#$m): "
       hexCardId=`nvidia-xconfig --query-gpu-info|grep -E 'PCI BusID'|cut -d' ' -f6|awk -F'[:]' '{ printf "%02x:%02x.%x\n", $2, $3, $4 }'|sed -n $(($m+1))p`
       echo -ne "$hexCardId "
