@@ -119,6 +119,7 @@ case $1 in
   drivers)
     #verify_drivers
     echo
+    echo "Would you like to attempt to install the driver? (y/N)"
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
       echo "Aborting driver installation.."
       exit 1
