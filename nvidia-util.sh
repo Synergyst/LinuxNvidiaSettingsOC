@@ -117,7 +117,7 @@ verify_drivers () {
 
 case $1 in
   drivers)
-    verify_drivers
+    #verify_drivers
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
       echo "Aborting driver installation.."
