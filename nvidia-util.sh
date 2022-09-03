@@ -117,7 +117,7 @@ verify_drivers () {
 
 case $1 in
   drivers)
-    #verify_drivers
+    download_drivers
     echo
     read -n 1 -p 'Would you like to attempt to install the driver? (y/N)' REPLY
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
